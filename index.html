@@ -1,13 +1,300 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <link href="style.css" rel="stylesheet" type="text/css" />
-    <title>허승범.html</title>
-  </head>
-  <body>
-    <button onclick="magic(event)"><lee>누르면 게이</lee></button>
-    <h1></h1>
-    <script src="script.js"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>안전 물놀이 방탈출! (최종 수정본)</title>
+    <style>
+        /* 기본 스타일 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background-color: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 게임 컨테이너 - 새 이미지(1920x1280) 비율에 맞춤 */
+        #game-container {
+            position: relative;
+            width: 1000px;
+            height: 667px; /* 1000px * (1280 / 1920) */
+            /* ========================================================== */
+            /* [수정됨] 깨지지 않는 새 이미지 URL로 교체했습니다. */
+            background-image: url('<a href="https://ibb.co/LzvWvRrK"><img src="https://i.ibb.co/DDLyLWYd/Whisk-a4dcb56a8b.jpg" alt="Whisk-a4dcb56a8b" border="0" /></a>');
+            /* ========================================================== */
+            background-size: cover;
+            background-position: center;
+            border: 2px solid #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* 모든 클릭 가능 오브젝트의 공통 스타일 */
+        .clickable-object {
+            position: absolute;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .clickable-object:hover {
+            background-color: rgba(255, 255, 0, 0.3);
+        }
+        .clickable-object.solved {
+            pointer-events: none;
+        }
+
+        /* 오브젝트별 위치 및 크기 설정 */
+        #obj-monitor { top: 305px; left: 683px; width: 135px; height: 160px; }
+        #obj-speaker { top: 465px; left: 478px; width: 125px; height: 175px; } /* 책상 위 스피커 */
+        #obj-clock { top: 119px; left: 479px; width: 45px; height: 45px; }
+        #obj-pencilcase { top: 370px; left: 645px; width: 55px; height: 80px; }
+        #obj-door { top: 200px; left: 820px; width: 85px; height: 310px; }
+
+        /* 모달 창 스타일 */
+        #modal-container {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.75); z-index: 100;
+            justify-content: center; align-items: center;
+        }
+        #modal-content {
+            background-color: #fff; padding: 30px; border-radius: 15px; width: 90%;
+            max-width: 550px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        #modal-content h2 { margin-top: 0; color: #005a9c; }
+        #modal-content p { font-size: 1.1em; }
+        #modal-content input { font-size: 1.2em; padding: 10px; margin: 10px 0; border: 2px solid #ccc; border-radius: 5px; text-align: center; }
+        #modal-content button {
+            font-size: 1.1em; padding: 10px 20px; margin: 5px; border-radius: 8px;
+            border: none; cursor: pointer; background-color: #007bff; color: white;
+            transition: background-color 0.2s;
+        }
+        #modal-content button:hover { background-color: #0056b3; }
+        #modal-content button.close-btn { background-color: #6c757d; }
+        #modal-content button.close-btn:hover { background-color: #5a6268; }
+
+        /* 메모리 카드 게임 스타일 */
+        #memory-board {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            margin: 20px auto; max-width: 400px;
+        }
+        .card {
+            width: 100%; aspect-ratio: 3 / 4; background-color: #88cff1;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2.5em; cursor: pointer; transform-style: preserve-3d;
+            transition: transform 0.6s; border-radius: 10px;
+        }
+        .card .front, .card .back { position: absolute; backface-visibility: hidden; }
+        .card .back { transform: rotateY(180deg); }
+        .card.flipped { transform: rotateY(180deg); }
+        .card.matched { background-color: #b2fab4; cursor: default; transform: rotateY(180deg); }
+
+        /* 하단 힌트 인벤토리 */
+        #hint-inventory {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6); color: white; padding: 10px 20px;
+            border-radius: 10px; display: flex; align-items: center; gap: 15px;
+        }
+        #hint-inventory span {
+            background-color: #fff; color: #333; font-weight: bold;
+            padding: 8px 12px; border-radius: 5px; font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 클릭 가능한 오브젝트들 -->
+        <div class="clickable-object" id="obj-monitor" data-id="monitor"></div>
+        <div class="clickable-object" id="obj-speaker" data-id="speaker"></div>
+        <div class="clickable-object" id="obj-clock" data-id="clock"></div>
+        <div class="clickable-object" id="obj-pencilcase" data-id="pencilcase"></div>
+        <div class="clickable-object" id="obj-door" data-id="door"></div>
+        
+        <div id="hint-inventory">
+            <strong>획득한 비밀번호 조각:</strong>
+        </div>
+    </div>
+
+    <div id="modal-container">
+        <div id="modal-content"></div>
+    </div>
+
+    <script>
+        // --- 1. 게임 상태 및 변수 설정 ---
+        const gameState = {
+            solvedPuzzles: [],
+            finalPassword: "2025"
+        };
+
+        const elements = {
+            modalContainer: document.getElementById('modal-container'),
+            modalContent: document.getElementById('modal-content'),
+            hintInventory: document.getElementById('hint-inventory'),
+            clickableObjects: document.querySelectorAll('.clickable-object'),
+        };
+        
+        const puzzles = {
+            monitor: { type: 'minigame', hint: '20' },
+            speaker: { type: 'quiz', name: '스피커', question: '물에 빠진 사람을 발견했을 때, 직접 물에 뛰어드는 것보다 더 안전한 행동은?', answer: '주변 어른에게 알리기', hint: '25' },
+            clock: { type: 'quiz', name: '시계', question: '물놀이 전, 최소 몇 분 이상 준비운동을 해야 심장마비를 예방할 수 있을까요? (숫자만 입력)', answer: '10' },
+            pencilcase: { type: 'hint', text: '안전 수칙 힌트: 물놀이 중에는 껌이나 사탕을 먹지 않도록 해요! 목에 걸리면 아주 위험해요.' },
+            door: { type: 'escape' }
+        };
+
+        // --- 2. 핵심 함수 ---
+        function showModal(htmlContent) {
+            elements.modalContent.innerHTML = htmlContent;
+            elements.modalContainer.style.display = 'flex';
+        }
+
+        function closeModal() {
+            elements.modalContainer.style.display = 'none';
+            elements.modalContent.innerHTML = '';
+        }
+        
+        function markAsSolved(id) {
+            gameState.solvedPuzzles.push(id);
+            document.getElementById(`obj-${id}`).classList.add('solved');
+        }
+
+        function addHintToInventory(hint) {
+            const hintSpan = document.createElement('span');
+            hintSpan.textContent = hint;
+            elements.hintInventory.appendChild(hintSpan);
+        }
+
+        // --- 3. 오브젝트 클릭 이벤트 처리 ---
+        elements.clickableObjects.forEach(obj => {
+            obj.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                if (gameState.solvedPuzzles.includes(id)) {
+                    alert('여기는 이미 확인했어요!');
+                    return;
+                }
+                const puzzle = puzzles[id];
+                switch(puzzle.type) {
+                    case 'minigame': launchMemoryGame(id); break;
+                    case 'quiz': launchQuiz(id); break;
+                    case 'hint': launchHint(id); break;
+                    case 'escape': launchEscape(id); break;
+                }
+            });
+        });
+
+        // --- 4. 퍼즐 실행 함수들 ---
+        function launchHint(id) {
+            const puzzle = puzzles[id];
+            alert(puzzle.text);
+            markAsSolved(id);
+        }
+
+        function launchQuiz(id) {
+            const puzzle = puzzles[id];
+            const content = `
+                <h2>퀴즈: ${puzzle.name}</h2>
+                <p>${puzzle.question}</p>
+                <input type="text" id="quiz-answer" placeholder="정답을 입력하세요">
+                <button id="quiz-submit">정답 확인</button>
+                <button class="close-btn" onclick="closeModal()">닫기</button>
+            `;
+            showModal(content);
+
+            document.getElementById('quiz-submit').addEventListener('click', () => {
+                const answer = document.getElementById('quiz-answer').value.trim();
+                if (answer === puzzle.answer) {
+                    if (puzzle.hint) {
+                        alert(`정답! 비밀번호 조각 [${puzzle.hint}]을(를) 획득했습니다!`);
+                        addHintToInventory(puzzle.hint);
+                    } else {
+                        alert('정답입니다! 중요한 안전 상식이군요.');
+                    }
+                    markAsSolved(id);
+                    closeModal();
+                } else {
+                    alert('틀렸습니다. 다시 생각해 보세요!');
+                }
+            });
+        }
+        
+        function launchMemoryGame(id) {
+            const puzzle = puzzles[id];
+            const content = `
+                <h2>미니게임: 안전 물놀이 카드 맞추기</h2>
+                <p>같은 안전 수칙 아이콘 카드를 모두 찾아주세요!</p>
+                <div id="memory-board"></div>
+                <button class="close-btn" onclick="closeModal()">포기하기</button>
+            `;
+            showModal(content);
+
+            const board = document.getElementById('memory-board');
+            const icons = ['🍩', '🍩', '🦺', '🦺', '🤸', '🤸', '🔥', '🔥'];
+            icons.sort(() => 0.5 - Math.random());
+            let flippedCards = [];
+            let matchedPairs = 0;
+
+            icons.forEach(icon => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.icon = icon;
+                card.innerHTML = `<div class="front"></div><div class="back">${icon}</div>`;
+                board.appendChild(card);
+                
+                card.addEventListener('click', () => {
+                    if (card.classList.contains('flipped') || flippedCards.length === 2) return;
+                    card.classList.add('flipped');
+                    flippedCards.push(card);
+                    if (flippedCards.length === 2) {
+                        const [card1, card2] = flippedCards;
+                        if (card1.dataset.icon === card2.dataset.icon) {
+                            card1.classList.add('matched');
+                            card2.classList.add('matched');
+                            matchedPairs++;
+                            flippedCards = [];
+                            if (matchedPairs === icons.length / 2) {
+                                setTimeout(() => {
+                                    alert(`성공! 비밀번호 조각 [${puzzle.hint}]을(를) 획득했습니다!`);
+                                    addHintToInventory(puzzle.hint);
+                                    markAsSolved(id);
+                                    closeModal();
+                                }, 500);
+                            }
+                        } else {
+                            setTimeout(() => {
+                                card1.classList.remove('flipped');
+                                card2.classList.remove('flipped');
+                                flippedCards = [];
+                            }, 1000);
+                        }
+                    }
+                });
+            });
+        }
+        
+        function launchEscape() {
+            const content = `
+                <h2>교실 문</h2>
+                <p>수업에서 배운 힌트들을 조합하여 네 자리 비밀번호를 입력하고 탈출하세요!</p>
+                <input type="text" id="password-input" placeholder="비밀번호 4자리" maxlength="4" style="letter-spacing: 5px;">
+                <button id="escape-button">탈출 시도</button>
+                <button class="close-btn" onclick="closeModal()">돌아가기</button>
+            `;
+            showModal(content);
+
+            document.getElementById('escape-button').addEventListener('click', () => {
+                const inputPassword = document.getElementById('password-input').value;
+                if (inputPassword === gameState.finalPassword) {
+                    alert('정답입니다! 🎉\n안전한 물놀이 수칙을 모두 기억하고 교실을 탈출합니다!');
+                    elements.modalContent.innerHTML = '<h2>탈출 성공!</h2><p>올여름, 안전하고 즐거운 물놀이 하세요!</p>';
+                    document.getElementById('game-container').style.filter = 'blur(5px)';
+                } else {
+                    alert('비밀번호가 틀렸습니다. 획득한 힌트를 다시 확인해 보세요.');
+                }
+            });
+        }
+    </script>
+</body>
 </html>
